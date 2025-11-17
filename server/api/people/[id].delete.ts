@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     if (!body.accessCode) {
       throw createError({
         statusCode: 400,
-        message: 'Access code is required'
+        message: 'Phone number is required'
       })
     }
 
@@ -35,12 +35,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verify access code
+    // Verify phone number
     const providedHash = hashAccessCode(body.accessCode)
     if (person.accessCodeHash !== providedHash) {
       throw createError({
         statusCode: 403,
-        message: 'Invalid access code'
+        message: 'Invalid phone number'
       })
     }
 

@@ -27,10 +27,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (body.accessCode.length < 4) {
+    if (body.accessCode.length < 10) {
       throw createError({
         statusCode: 400,
-        message: 'Access code must be at least 4 characters long.'
+        message: 'Phone number must be at least 10 digits long.'
       })
     }
 

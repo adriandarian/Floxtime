@@ -2,12 +2,12 @@
 
 ## Security Features
 
-✅ **Access Code Protection**: Each person must create a unique access code when submitting their availability. This code is required to delete or modify their entry, preventing others from tampering with their data.
+✅ **Phone Number Protection**: Each person must provide their phone number when submitting their availability. This phone number is required to delete or modify their entry, preventing others from tampering with their data.
 
-- Access codes are **hashed using SHA-256** before storage (not stored in plain text)
-- Minimum 4 characters required
-- Users must save their code - there's no password recovery
-- Deletion attempts without correct access code will fail
+- Phone numbers are **hashed using SHA-256** before storage (not stored in plain text)
+- Minimum 10 digits required
+- Users must remember their phone number to delete their availability
+- Deletion attempts without correct phone number will fail
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ After adding environment variables, trigger a new deployment:
 1. Share the deployed URL with friends/colleagues
 2. Each person creates their own entry with:
    - Their name
-   - An access code (they must remember this!)
+   - Their phone number
    - Their available dates
 
 ### For Participants
@@ -93,9 +93,9 @@ After adding environment variables, trigger a new deployment:
 2. Click the **+** button
 3. Enter:
    - Your name
-   - Create an access code (4+ characters)
+   - Your phone number (10+ digits)
    - Select your available dates
-4. **Save your access code!** You'll need it to delete your entry
+4. Your phone number is used to manage your availability
 
 ### Viewing Availability
 - **Month View**: See everyone's availability in calendar format
@@ -107,7 +107,7 @@ After adding environment variables, trigger a new deployment:
 1. Switch to List View
 2. Find your entry
 3. Click the delete button
-4. Enter your access code when prompted
+4. Enter your phone number when prompted
 
 ## Troubleshooting
 
@@ -121,9 +121,9 @@ After adding environment variables, trigger a new deployment:
 - Check database user has read/write permissions
 
 ### Can't Delete Entry
-- Verify you're entering the correct access code
-- Access codes are case-sensitive
-- There's no way to recover a forgotten code (you'll need to ask the organizer)
+- Verify you're entering the correct phone number
+- Phone number must match exactly as entered during creation
+- Contact the event organizer if you need help
 
 ## Custom Domain (Optional)
 
@@ -139,10 +139,10 @@ After adding environment variables, trigger a new deployment:
 
 ## Security Notes
 
-- ✅ Access codes are hashed (SHA-256) before storage
-- ✅ No plain-text password storage
+- ✅ Phone numbers are hashed (SHA-256) before storage
+- ✅ No plain-text phone numbers stored
 - ✅ Each person can only delete their own entries
-- ⚠️ No password recovery (by design - keeps it simple)
+- ⚠️ Phone numbers are used for authentication (simple and practical)
 - ⚠️ Anyone with the URL can view all availability (not password protected for viewing)
 
 ## Maintenance

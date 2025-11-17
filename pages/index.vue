@@ -112,31 +112,33 @@
           </div>
 
           <form @submit.prevent="addPerson" class="modal-form">
-            <div class="form-group">
-              <label for="name">Name</label>
-              <input
-                id="name"
-                v-model="newPerson.name"
-                type="text"
-                placeholder="Enter your name"
-                class="form-input"
-                required
-              />
-            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input
+                  id="name"
+                  v-model="newPerson.name"
+                  type="text"
+                  placeholder="Enter your name"
+                  class="form-input"
+                  required
+                />
+              </div>
 
-            <div class="form-group">
-              <label for="accessCode">Access Code (to edit/delete later)</label>
-              <input
-                id="accessCode"
-                v-model="newPerson.accessCode"
-                type="password"
-                placeholder="Create a code (e.g., 1234)"
-                class="form-input"
-                required
-                minlength="4"
-              />
-              <p class="form-hint">Save this code - you'll need it to modify your availability</p>
+              <div class="form-group">
+                <label for="accessCode">Phone Number</label>
+                <input
+                  id="accessCode"
+                  v-model="newPerson.accessCode"
+                  type="tel"
+                  placeholder="555-123-4567"
+                  class="form-input"
+                  required
+                  minlength="10"
+                />
+              </div>
             </div>
+            <p class="form-hint">Your phone number is used to manage your availability</p>
 
             <div class="form-group">
               <label>Select Available Dates</label>
@@ -150,7 +152,7 @@
               <button
                 type="submit"
                 class="btn-submit"
-                :disabled="!newPerson.name.trim() || !newPerson.accessCode || newPerson.accessCode.length < 4 || newPerson.dateRanges.length === 0 || loading"
+                :disabled="!newPerson.name.trim() || !newPerson.accessCode || newPerson.accessCode.length < 10 || newPerson.dateRanges.length === 0 || loading"
               >
                 {{ loading ? 'Saving...' : 'Submit' }}
               </button>
@@ -250,7 +252,7 @@ function closeModal() {
 }
 
 async function deletePerson(id: string) {
-  const accessCode = prompt('Enter your access code to delete this availability:')
+  const accessCode = prompt('Enter your phone number to delete this availability:')
   
   if (!accessCode) {
     return
@@ -269,7 +271,7 @@ async function deletePerson(id: string) {
     }
   } catch (error: any) {
     console.error('Failed to delete person:', error)
-    alert(error.data?.message || 'Failed to delete. Check your access code and try again.')
+    alert(error.data?.message || 'Failed to delete. Check your phone number and try again.')
   } finally {
     deleting.value = null
   }
@@ -745,6 +747,12 @@ onMounted(() => {
   gap: 25px;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -783,7 +791,8 @@ onMounted(() => {
 .form-hint {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
+  margin-top: 0;
+  margin-bottom: 20px;
   font-style: italic;
 }
 
