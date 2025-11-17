@@ -233,21 +233,25 @@ function isRangeEnd(date: string): boolean {
 
 function selectDate(date: string) {
   if (!selectingStart.value) {
+    // First click - start selection
     selectingStart.value = date
   } else {
+    // Second click - complete selection
     const start = new Date(selectingStart.value)
     const end = new Date(date)
     
+    // Swap if end is before start (unless it's the same day)
+    let startDate = selectingStart.value
+    let endDate = date
+    
     if (end < start) {
-      // Swap if end is before start
-      const temp = selectingStart.value
-      selectingStart.value = date
-      date = temp
+      startDate = date
+      endDate = selectingStart.value
     }
     
     const newRange: DateRange = {
-      start: selectingStart.value,
-      end: date
+      start: startDate,
+      end: endDate
     }
     
     // Check if this range overlaps with any existing range
@@ -264,6 +268,7 @@ function selectDate(date: string) {
       dateRanges.value = [...dateRanges.value, newRange]
     }
     
+    // Reset selection so user can select another date/range
     selectingStart.value = null
   }
 }
@@ -274,12 +279,10 @@ function clearSelection() {
 }
 
 function previousMonth() {
-  selectingStart.value = null
   currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1)
 }
 
 function nextMonth() {
-  selectingStart.value = null
   currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1)
 }
 
