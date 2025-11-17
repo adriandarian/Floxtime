@@ -39,13 +39,19 @@ export async function connectToDatabase(): Promise<Db> {
       console.warn('⚠️ Please use mongodb+srv:// for MongoDB Atlas connections')
     }
     
+    // Log connection attempt details (without password)
+    const safeUri = uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')
+    console.log('Attempting connection to:', safeUri)
+    
     // Minimal config - let mongodb+srv:// handle TLS automatically
     const client = new MongoClient(uri, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000, // Increased timeout
       connectTimeoutMS: 10000,
     })
     
+    console.log('Client created, connecting...')
     await client.connect()
+    console.log('Client connected, verifying...')
     
     // Verify connection
     await client.db().admin().ping()
@@ -60,21 +66,34 @@ export async function connectToDatabase(): Promise<Db> {
     return db
   } catch (error: any) {
     console.error('❌ MongoDB connection error:', error.message)
+    console.error('Error type:', error.name)
+    console.error('Error code:', error.code)
     
     // Provide helpful error messages
     if (error.message.includes('tlsv1 alert') || error.message.includes('SSL')) {
-      console.error('💡 TLS/SSL Error detected!')
-      console.error('💡 Solution: Make sure your MONGODB_URI uses mongodb+srv:// (not mongodb://)')
-      console.error('💡 Get a fresh connection string from MongoDB Atlas → Connect → Drivers')
+      console.error('💡 TLS/SSL Error: MongoDB is REJECTING the connection')
+      console.error('💡 This usually means:')
+      console.error('   1. IP address not whitelisted (add 0.0.0.0/0 AND ::/0)')
+      console.error('   2. Database user missing or wrong permissions')
+      console.error('   3. Cluster still provisioning (wait 5 min)')
+      console.error('💡 See MONGODB_AWS_TROUBLESHOOTING.md for step-by-step fix')
     }
     
     if (error.message.includes('ENOTFOUND')) {
       console.error('💡 DNS Error: Check your cluster URL in the connection string')
+      console.error('💡 Get a fresh connection string from MongoDB Atlas')
     }
     
     if (error.message.includes('Authentication failed')) {
       console.error('💡 Auth Error: Check your username and password')
       console.error('💡 URL-encode special characters in your password')
+      console.error('💡 Verify user exists in Database Access')
+    }
+    
+    if (error.message.includes('Server selection timed out')) {
+      console.error('💡 Timeout Error: Cannot reach MongoDB cluster')
+      console.error('💡 Check Network Access whitelist (0.0.0.0/0)')
+      console.error('💡 Verify cluster is active (not paused)')
     }
     
     throw new Error(`Failed to connect to MongoDB: ${error.message}`)
