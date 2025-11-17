@@ -1,33 +1,62 @@
 import { MongoClient, Db } from 'mongodb'
 
-let client: MongoClient | null = null
-let db: Db | null = null
+let cachedClient: MongoClient | null = null
+let cachedDb: Db | null = null
 
 export async function connectToDatabase(): Promise<Db> {
-  if (db) {
-    return db
+  // Return cached connection if available
+  if (cachedDb && cachedClient) {
+    try {
+      // Test the connection
+      await cachedClient.db().admin().ping()
+      return cachedDb
+    } catch (error) {
+      console.log('Cached connection failed, reconnecting...')
+      cachedClient = null
+      cachedDb = null
+    }
   }
 
   const config = useRuntimeConfig()
   const uri = config.mongodbUri
 
-  if (!uri) {
-    throw new Error('MONGODB_URI is not defined in environment variables')
+  if (!uri || uri === '') {
+    console.error('MONGODB_URI is missing!')
+    throw new Error('MONGODB_URI environment variable is not set. Please add it in Vercel Environment Variables.')
   }
 
-  if (!client) {
-    client = new MongoClient(uri)
+  try {
+    console.log('Connecting to MongoDB...')
+    
+    // Create new client with serverless-friendly options
+    const client = new MongoClient(uri, {
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      maxIdleTimeMS: 60000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    })
+    
     await client.connect()
+    console.log('MongoDB connected successfully')
+    
+    const db = client.db()
+    
+    // Cache for reuse
+    cachedClient = client
+    cachedDb = db
+    
+    return db
+  } catch (error: any) {
+    console.error('MongoDB connection error:', error.message)
+    throw new Error(`Failed to connect to MongoDB: ${error.message}`)
   }
-
-  db = client.db()
-  return db
 }
 
 export async function closeDatabaseConnection() {
-  if (client) {
-    await client.close()
-    client = null
-    db = null
+  if (cachedClient) {
+    await cachedClient.close()
+    cachedClient = null
+    cachedDb = null
   }
 }

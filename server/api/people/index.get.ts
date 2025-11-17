@@ -1,4 +1,4 @@
- import { connectToDatabase } from '../../utils/mongodb'
+import { connectToDatabase } from '../../utils/mongodb'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -10,9 +10,11 @@ export default defineEventHandler(async (event) => {
       data: people
     }
   } catch (error: any) {
+    console.error('GET /api/people error:', error)
     throw createError({
       statusCode: 500,
-      message: error.message || 'Failed to fetch people'
+      message: error.message || 'Failed to fetch people',
+      data: { error: error.message }
     })
   }
 })
