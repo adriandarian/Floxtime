@@ -1,5 +1,5 @@
 import { connectToDatabase } from '../../utils/mongodb'
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 interface DateRange {
   start: string

@@ -1,6 +1,6 @@
 import { connectToDatabase } from '../../utils/mongodb'
 import { ObjectId } from 'mongodb'
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 function hashAccessCode(code: string): string {
   return crypto.createHash('sha256').update(code).digest('hex')
