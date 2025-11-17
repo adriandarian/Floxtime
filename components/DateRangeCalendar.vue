@@ -2,10 +2,27 @@
   <div class="date-range-calendar">
     <div class="calendars-container">
       <!-- First Month -->
-      <div class="calendar-month">
+      <div class="calendar-month glass-calendar">
         <div class="calendar-header">
-          <button type="button" @click="previousMonth" class="nav-button">‹</button>
+          <button 
+            v-if="!readonly" 
+            type="button" 
+            @click="previousMonth" 
+            class="nav-button"
+          >
+            ‹
+          </button>
+          <div v-else class="nav-spacer"></div>
           <h3>{{ firstMonthYear }}</h3>
+          <button 
+            v-if="!readonly && !isMobile" 
+            type="button" 
+            @click="nextMonth" 
+            class="nav-button"
+          >
+            ›
+          </button>
+          <div v-else-if="readonly || isMobile" class="nav-spacer"></div>
         </div>
         
         <div class="calendar-grid">
@@ -20,24 +37,41 @@
               'calendar-day',
               {
                 'other-month': !day.isCurrentMonth,
-                'selected': isDateSelected(day.date),
-                'in-range': isDateInRange(day.date),
-                'range-start': isRangeStart(day.date),
-                'range-end': isRangeEnd(day.date)
-              }
+                'selected': !readonly && isDateSelected(day.date),
+                'in-range': !readonly && isDateInRange(day.date),
+                'range-start': !readonly && isRangeStart(day.date),
+                'range-end': !readonly && isRangeEnd(day.date),
+                'readonly': readonly
+              },
+              readonly ? getOverlapClass(day.date) : ''
             ]"
-            @click="selectDate(day.date)"
+            :style="getOverlapStyle(day.date)"
+            @click="!readonly && selectDate(day.date)"
           >
-            {{ day.day }}
+            <span class="day-number">{{ day.day || '' }}</span>
+            <div v-if="readonly && getAvailablePeople(day.date).length > 0" class="availability-tooltip">
+              <div v-for="person in getAvailablePeople(day.date)" :key="person" class="tooltip-person">
+                {{ person }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Second Month -->
-      <div class="calendar-month">
+      <!-- Second Month (Desktop only) -->
+      <div v-if="!isMobile" class="calendar-month glass-calendar">
         <div class="calendar-header">
+          <div class="nav-spacer"></div>
           <h3>{{ secondMonthYear }}</h3>
-          <button type="button" @click="nextMonth" class="nav-button">›</button>
+          <button 
+            v-if="!readonly" 
+            type="button" 
+            @click="nextMonth" 
+            class="nav-button"
+          >
+            ›
+          </button>
+          <div v-else class="nav-spacer"></div>
         </div>
         
         <div class="calendar-grid">
@@ -52,33 +86,29 @@
               'calendar-day',
               {
                 'other-month': !day.isCurrentMonth,
-                'selected': isDateSelected(day.date),
-                'in-range': isDateInRange(day.date),
-                'range-start': isRangeStart(day.date),
-                'range-end': isRangeEnd(day.date)
-              }
+                'selected': !readonly && isDateSelected(day.date),
+                'in-range': !readonly && isDateInRange(day.date),
+                'range-start': !readonly && isRangeStart(day.date),
+                'range-end': !readonly && isRangeEnd(day.date),
+                'readonly': readonly
+              },
+              readonly ? getOverlapClass(day.date) : ''
             ]"
-            @click="selectDate(day.date)"
+            :style="getOverlapStyle(day.date)"
+            @click="!readonly && selectDate(day.date)"
           >
-            {{ day.day }}
+            <span class="day-number">{{ day.day || '' }}</span>
+            <div v-if="readonly && getAvailablePeople(day.date).length > 0" class="availability-tooltip">
+              <div v-for="person in getAvailablePeople(day.date)" :key="person" class="tooltip-person">
+                {{ person }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
     
-    <div class="selected-ranges" v-if="dateRanges.length > 0">
-      <h4>Selected Date Ranges:</h4>
-      <div
-        v-for="(range, index) in dateRanges"
-        :key="index"
-        class="range-item"
-      >
-        <span>{{ formatDate(range.start) }} - {{ formatDate(range.end) }}</span>
-        <button type="button" @click="removeRange(index)" class="remove-btn">×</button>
-      </div>
-    </div>
-    
-    <div class="calendar-actions">
+    <div v-if="!readonly && dateRanges.length > 0" class="calendar-actions">
       <button type="button" @click="clearSelection" class="clear-btn">Clear All</button>
     </div>
   </div>
@@ -90,13 +120,24 @@ interface DateRange {
   end: string
 }
 
+interface Person {
+  _id: string
+  name: string
+  dateRanges: DateRange[]
+}
+
 const props = defineProps<{
   modelValue: DateRange[]
+  readonly?: boolean
+  peopleData?: Person[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: DateRange[]]
 }>()
+
+const { width } = useWindowSize()
+const isMobile = computed(() => width.value <= 768)
 
 const dateRanges = computed({
   get: () => props.modelValue,
@@ -221,10 +262,6 @@ function selectDate(date: string) {
   }
 }
 
-function removeRange(index: number) {
-  dateRanges.value = dateRanges.value.filter((_, i) => i !== index)
-}
-
 function clearSelection() {
   dateRanges.value = []
   selectingStart.value = null
@@ -239,191 +276,352 @@ function nextMonth() {
   selectingStart.value = null
   currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1)
 }
+
+// Get people available on a specific date
+function getAvailablePeople(date: string): string[] {
+  if (!props.peopleData || !props.readonly) return []
+  
+  const checkDate = new Date(date)
+  const availablePeople: string[] = []
+  
+  props.peopleData.forEach(person => {
+    const isAvailable = person.dateRanges.some(range => {
+      const start = new Date(range.start)
+      const end = new Date(range.end)
+      return checkDate >= start && checkDate <= end
+    })
+    
+    if (isAvailable) {
+      availablePeople.push(person.name)
+    }
+  })
+  
+  return availablePeople
+}
+
+// Get overlap class based on percentage of people available
+function getOverlapClass(date: string): string {
+  if (!props.readonly || !props.peopleData) return ''
+  
+  const count = getAvailablePeople(date).length
+  if (count === 0) return ''
+  
+  const totalPeople = props.peopleData.length
+  if (totalPeople === 0) return ''
+  
+  const percentage = (count / totalPeople) * 100
+  
+  // Dynamic scaling based on percentage
+  if (percentage <= 25) return 'overlap-low'      // 0-25% (blue)
+  if (percentage <= 50) return 'overlap-medium'   // 25-50% (purple)
+  if (percentage <= 75) return 'overlap-high'     // 50-75% (pink)
+  return 'overlap-highest'                        // 75-100% (orange)
+}
+
+// Get dynamic opacity based on overlap count
+function getOverlapStyle(date: string): Record<string, string> {
+  if (!props.readonly) return {}
+  
+  const count = getAvailablePeople(date).length
+  if (count === 0) return {}
+  
+  // Calculate opacity: more people = darker
+  const maxPeople = Math.max(
+    ...Array.from(new Set(
+      props.peopleData?.map(p => p.dateRanges.length) || []
+    ))
+  )
+  
+  const opacity = Math.min(0.3 + (count * 0.15), 0.9)
+  
+  return {}
+}
 </script>
 
 <style scoped>
 .date-range-calendar {
   width: 100%;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow: visible;
 }
 
 .calendars-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  align-items: start;
+  width: 100%;
+  overflow: visible;
 }
 
 @media (max-width: 768px) {
   .calendars-container {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
   }
+}
+
+.glass-calendar {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .calendar-month {
   display: flex;
   flex-direction: column;
+  overflow: visible;
+  width: 100%;
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 15px;
+  flex-shrink: 0;
 }
 
 .calendar-header h3 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  color: #111827;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .nav-button {
-  background: #f3f4f6;
-  border: none;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 1.25rem;
-  color: #374151;
-  transition: all 0.2s;
+  font-size: 1.2rem;
+  color: #ffffff;
+  transition: all 0.3s ease;
   line-height: 1;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-button:hover {
-  background: #e5e7eb;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.nav-spacer {
+  width: 36px;
+  height: 36px;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
+  width: 100%;
+  overflow: visible;
 }
 
 .day-header {
   text-align: center;
   font-weight: 600;
   padding: 8px 4px;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .calendar-day {
-  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: rgba(255, 255, 255, 0.9);
+  aspect-ratio: 1;
+  min-height: 40px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  isolation: isolate;
 }
 
-.calendar-day:hover {
-  background: #f3f4f6;
+.calendar-day:hover:not(.readonly) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
 }
+
 
 .calendar-day.other-month {
-  color: #d1d5db;
-  opacity: 0.5;
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 0.4;
+}
+
+.calendar-day.readonly {
+  cursor: default;
+}
+
+/* Overlap styling - percentage-based for scalability */
+.calendar-day.overlap-low {
+  background: rgba(59, 130, 246, 0.4);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+}
+
+.calendar-day.overlap-medium {
+  background: rgba(168, 85, 247, 0.5);
+  border-color: rgba(168, 85, 247, 0.7);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.calendar-day.overlap-high {
+  background: rgba(236, 72, 153, 0.55);
+  border-color: rgba(236, 72, 153, 0.75);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.calendar-day.overlap-highest {
+  background: rgba(249, 115, 22, 0.65);
+  border-color: rgba(249, 115, 22, 0.85);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(249, 115, 22, 0.5);
+}
+
+.calendar-day.overlap-low:hover,
+.calendar-day.overlap-medium:hover,
+.calendar-day.overlap-high:hover,
+.calendar-day.overlap-highest:hover {
+  transform: scale(1.08);
+  filter: brightness(1.2);
 }
 
 .calendar-day.selected {
-  background: #dbeafe;
-  color: #1e40af;
+  background: rgba(99, 102, 241, 0.4);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.6);
+  font-weight: 600;
 }
 
 .calendar-day.in-range {
-  background: #dbeafe;
-  color: #1e40af;
+  background: rgba(99, 102, 241, 0.3);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 .calendar-day.range-start {
-  background: #3b82f6;
-  color: white;
-  font-weight: 600;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.6));
+  color: #ffffff;
+  font-weight: 700;
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
 .calendar-day.range-end {
-  background: #3b82f6;
-  color: white;
-  font-weight: 600;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.6));
+  color: #ffffff;
+  font-weight: 700;
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
-.selected-ranges {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+/* Tooltip Styles */
+.availability-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 120px;
+  max-width: 200px;
+  z-index: 999999;
+  display: none;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
 }
 
-.selected-ranges h4 {
-  margin: 0 0 12px 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.calendar-day.readonly:hover .availability-tooltip {
+  display: block;
 }
 
-.range-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  background: #f9fafb;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 0.875rem;
+.tooltip-person {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.8rem;
+  padding: 3px 0;
+  line-height: 1.4;
 }
 
-.remove-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  font-size: 1.25rem;
-  line-height: 1;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.remove-btn:hover {
-  background: #dc2626;
+.day-number {
+  display: inline-block;
+  color: inherit;
+  z-index: 0;
 }
 
 .calendar-actions {
-  margin-top: 16px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
 }
 
 .clear-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 10px;
+  padding: 10px 20px;
   cursor: pointer;
   font-size: 0.875rem;
-  font-weight: 500;
-  transition: background 0.2s;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .clear-btn:hover {
-  background: #dc2626;
+  background: rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 768px) {
+  .glass-calendar {
+    padding: 15px;
+    border-radius: 12px;
+  }
+
+  .calendar-header h3 {
+    font-size: 1rem;
+  }
+
+  .calendar-day {
+    min-height: 36px;
+    font-size: 0.8125rem;
+  }
+
+  .day-header {
+    font-size: 0.7rem;
+    padding: 6px 2px;
+  }
 }
 </style>
