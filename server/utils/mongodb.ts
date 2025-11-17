@@ -27,34 +27,29 @@ export async function connectToDatabase(): Promise<Db> {
 
   try {
     console.log('Connecting to MongoDB...')
+    console.log('URI format check:', uri.substring(0, 14)) // Log first part to verify mongodb+srv
     
-    // Create new client with serverless-friendly options and TLS config
+    // Validate connection string format
+    if (!uri.startsWith('mongodb+srv://') && !uri.startsWith('mongodb://')) {
+      throw new Error('Invalid MongoDB URI format. Must start with mongodb:// or mongodb+srv://')
+    }
+    
+    if (uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+      console.warn('⚠️ WARNING: Using mongodb:// instead of mongodb+srv:// may cause TLS issues!')
+      console.warn('⚠️ Please use mongodb+srv:// for MongoDB Atlas connections')
+    }
+    
+    // Minimal config - let mongodb+srv:// handle TLS automatically
     const client = new MongoClient(uri, {
-      // Connection pool settings
-      maxPoolSize: 10,
-      minPoolSize: 1,
-      maxIdleTimeMS: 60000,
-      
-      // Timeout settings
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000,
-      
-      // TLS/SSL settings for Vercel serverless
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
-      
-      // Retry settings
-      retryWrites: true,
-      retryReads: true,
-      
-      // Compression
-      compressors: ['snappy', 'zlib'],
     })
     
     await client.connect()
-    console.log('MongoDB connected successfully')
+    
+    // Verify connection
+    await client.db().admin().ping()
+    console.log('✅ MongoDB connected successfully')
     
     const db = client.db()
     
@@ -64,8 +59,24 @@ export async function connectToDatabase(): Promise<Db> {
     
     return db
   } catch (error: any) {
-    console.error('MongoDB connection error:', error.message)
-    console.error('Full error:', error)
+    console.error('❌ MongoDB connection error:', error.message)
+    
+    // Provide helpful error messages
+    if (error.message.includes('tlsv1 alert') || error.message.includes('SSL')) {
+      console.error('💡 TLS/SSL Error detected!')
+      console.error('💡 Solution: Make sure your MONGODB_URI uses mongodb+srv:// (not mongodb://)')
+      console.error('💡 Get a fresh connection string from MongoDB Atlas → Connect → Drivers')
+    }
+    
+    if (error.message.includes('ENOTFOUND')) {
+      console.error('💡 DNS Error: Check your cluster URL in the connection string')
+    }
+    
+    if (error.message.includes('Authentication failed')) {
+      console.error('💡 Auth Error: Check your username and password')
+      console.error('💡 URL-encode special characters in your password')
+    }
+    
     throw new Error(`Failed to connect to MongoDB: ${error.message}`)
   }
 }
