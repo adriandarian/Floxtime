@@ -1,4 +1,5 @@
 import { connectToDatabase } from '../../utils/mongodb'
+import crypto from 'crypto'
 
 interface DateRange {
   start: string
@@ -8,16 +9,28 @@ interface DateRange {
 interface Person {
   name: string
   dateRanges: DateRange[]
+  accessCode: string
+}
+
+function hashAccessCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex')
 }
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<Person>(event)
     
-    if (!body.name || !body.dateRanges || !Array.isArray(body.dateRanges)) {
+    if (!body.name || !body.dateRanges || !Array.isArray(body.dateRanges) || !body.accessCode) {
       throw createError({
         statusCode: 400,
-        message: 'Invalid request body. Name and dateRanges array are required.'
+        message: 'Invalid request body. Name, dateRanges array, and accessCode are required.'
+      })
+    }
+
+    if (body.accessCode.length < 4) {
+      throw createError({
+        statusCode: 400,
+        message: 'Access code must be at least 4 characters long.'
       })
     }
 
@@ -25,6 +38,7 @@ export default defineEventHandler(async (event) => {
     const result = await db.collection('people').insertOne({
       name: body.name,
       dateRanges: body.dateRanges,
+      accessCodeHash: hashAccessCode(body.accessCode),
       createdAt: new Date(),
       updatedAt: new Date()
     })

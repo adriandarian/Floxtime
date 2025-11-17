@@ -1,5 +1,10 @@
 import { connectToDatabase } from '../../utils/mongodb'
 import { ObjectId } from 'mongodb'
+import crypto from 'crypto'
+
+function hashAccessCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex')
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,7 +16,34 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const body = await readBody<{ accessCode: string }>(event)
+    
+    if (!body.accessCode) {
+      throw createError({
+        statusCode: 400,
+        message: 'Access code is required'
+      })
+    }
+
     const db = await connectToDatabase()
+    const person = await db.collection('people').findOne({ _id: new ObjectId(id) })
+
+    if (!person) {
+      throw createError({
+        statusCode: 404,
+        message: 'Person not found'
+      })
+    }
+
+    // Verify access code
+    const providedHash = hashAccessCode(body.accessCode)
+    if (person.accessCodeHash !== providedHash) {
+      throw createError({
+        statusCode: 403,
+        message: 'Invalid access code'
+      })
+    }
+
     const result = await db.collection('people').deleteOne({ _id: new ObjectId(id) })
 
     if (result.deletedCount === 0) {
