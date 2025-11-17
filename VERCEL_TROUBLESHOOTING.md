@@ -48,11 +48,15 @@ Your connection string should look like:
 mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/DATABASE?retryWrites=true&w=majority
 ```
 
+**IMPORTANT**: Must use `mongodb+srv://` (NOT `mongodb://`) for proper TLS/SSL support!
+
 Common issues:
+- ❌ Using `mongodb://` instead of `mongodb+srv://` → **This causes TLS errors!**
 - ❌ Missing `+srv` → Should be `mongodb+srv://`
 - ❌ Special characters in password not URL-encoded
 - ❌ Wrong cluster name
 - ❌ Missing database name
+- ❌ Old connection string format → Get a fresh one from MongoDB Atlas
 
 ### To get the correct string:
 
@@ -76,6 +80,8 @@ Look for:
 - "MONGODB_URI is missing!" → Environment variable not set
 - "Failed to connect to MongoDB" → Connection string or network issue
 - "getaddrinfo ENOTFOUND" → Invalid cluster URL
+- "tlsv1 alert internal error" or "SSL routines" → **Use mongodb+srv:// not mongodb://**
+- "ECONNREFUSED" → Wrong cluster address or MongoDB is down
 
 ## Step 5: Test Locally First
 
@@ -129,7 +135,29 @@ Example:
 - Password: `P@ss:word!`
 - Encoded: `P%40ss%3Aword!`
 
-### Solution 2: Create New Database User
+### Solution 2: Get Fresh Connection String
+
+If you see TLS/SSL errors, get a new connection string:
+
+1. MongoDB Atlas → Click **Connect** on your cluster
+2. Choose **Drivers** → **Node.js** → Latest version
+3. Copy the connection string (should start with `mongodb+srv://`)
+4. Replace `<password>` with your actual password
+5. Add `/DATABASE_NAME` before the `?` (e.g., `/floxtime?retryWrites=...`)
+6. Update in Vercel environment variables
+7. Redeploy
+
+**Correct format:**
+```
+mongodb+srv://user:pass@cluster.mongodb.net/floxtime?retryWrites=true&w=majority
+```
+
+**Wrong format (causes TLS errors):**
+```
+mongodb://user:pass@cluster.mongodb.net:27017/floxtime  ❌
+```
+
+### Solution 3: Create New Database User
 
 Sometimes permissions are the issue:
 

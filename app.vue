@@ -1,8 +1,13 @@
+<script setup lang="ts">
+import { Analytics } from '@vercel/analytics/nuxt'
+</script>
+
 <template>
   <div class="app-container">
     <div class="background-gradient"></div>
     <div class="glass-overlay"></div>
     <NuxtPage />
+    <Analytics />
   </div>
 </template>
 
