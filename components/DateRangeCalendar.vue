@@ -5,14 +5,12 @@
       <div class="calendar-month glass-calendar">
         <div class="calendar-header">
           <button 
-            v-if="!readonly" 
             type="button" 
             @click="previousMonth" 
             class="nav-button"
           >
             ‹
           </button>
-          <div v-else class="nav-spacer"></div>
           <h3>{{ firstMonthYear }}</h3>
           <button 
             v-if="!readonly && !isMobile" 
@@ -22,7 +20,15 @@
           >
             ›
           </button>
-          <div v-else-if="readonly || isMobile" class="nav-spacer"></div>
+          <button 
+            v-else-if="readonly || isMobile" 
+            type="button" 
+            @click="nextMonth" 
+            class="nav-button"
+          >
+            ›
+          </button>
+          <div v-else class="nav-spacer"></div>
         </div>
         
         <div class="calendar-grid">
